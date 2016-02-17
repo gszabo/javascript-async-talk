@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Testing async</title>
+
+		<meta name="description" content="Testing async operations in JavaScript with mocha">
+		<meta name="author" content="Gabor Szabp">
+
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/black.css" id="theme">
+
+		<!-- Code syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+					<section>
+						<h1>Testing async</h1>
+					</section>
+					<section>
+						<h2>Contents</h2>
+						<ol>
+							<li>Async overview</li>
+							<li>Async tests</li>
+							<li>Additional info</li>
+						</ol>
+					</section>
+				</section>
+
+				<section>
+					<h2>Async overview</h2>
+				</section>
+
+        <section>
+
+          <section>
+            <h2>Why async?</h2>
+          </section>
+
+          <section>
+            <h2>JS concurrency model</h2>
+            <ul>
+              <li>single threaded</li>
+              <li>event based</li>
+            </ul>
+          </section>
+
+          <section>
+            <p>Single threaded -&gt; non-blocking I/O model</p>
+            <div class="fragment">
+              <p>Every long-running operation is asynchronous</p>
+              <ul>
+                <li>network request</li>
+                <li>filesystem operation</li>
+                <li>IndexedDB</li>
+              </ul>
+            </div>
+            <p class="fragment">NodeJS is great for I/O heavy operations</p>
+            <aside class="notes">
+              <p>I/O has to be non-blocking, otherwise browser and UI would freeze</p>
+              <p>NodeJS can respond to multiple requests resource efficiently with one thread</p>
+            </aside>
+          </section>
+
+          <section>
+            <p>Caller is notified of completion</p>
+            <p class="fragment">But... how?</p>
+          </section>
+
+        </section>
+
+				<section>
+
+					<section>
+						<h2>Callbacks</h2>
+					</section>
+
+					<section>
+						<p>
+							A function that is called upon completion.
+						</p>
+						<pre>
+							<code class="hljs">
+fs.writeFile(path, data, function(error) {
+  // ...
+});
+							</code>
+						</pre>
+					</section>
+
+					<section>
+						<h2>Guarantees</h2>
+						<ul>
+							<li>Will it be called?</li>
+							<li>Only once?</li>
+						</ul>
+					</section>
+
+					<section>
+						<h2>Control flow patterns</h2>
+						<ul>
+							<li>Loops</li>
+							<li>Parallel</li>
+							<li>Conditions</li>
+						</ul>
+					</section>
+
+					<section>
+						<h2>Callback pyramid/hell</h2>
+						<pre>
+							<code class="hljs">
+fs.readFile('file1.txt', function(error, content) {
+  let otherPath = content.split(';')[2];
+  fs.readFile(otherPath, function(error, userIds) {
+    let firstId = userIds.split(';')[0];
+    db.fetch(firstId, function(error, userData) {
+      // ...
+    });
+  });
+});
+							</code>
+						</pre>
+					</section>
+
+					<section>
+						<h2>Callback pyramid/hell</h2>
+						<ul>
+							<li>Hard to refactor</li>
+							<li>Error handling cannot be separated from bussiness logic</li>
+						</ul>
+					</section>
+
+					<section>
+						<h2>Error handling</h2>
+						<p>NodeJS convention</p>
+						<pre>
+              <code class="hljs">
+callback(error, result);
+
+fs.readFile('file.txt', function(error, result) {
+  if (error) {
+    // do some error handling
+    // maybe call a callback given to us
+    return;
+  }
+});
+              </code>
+            </pre>
+            <aside class="notes">RETURN!!! otherwise callback would be called multiple times</aside>
+					</section>
+
+					<section>
+						<h2>lib: <a href="https://github.com/caolan/async">async</a></h2>
+					</section>
+
+					<section>
+						<h2>async</h2>
+						<p>Collection and control flow patterns</p>
+						<ul>
+							<li>map, filter, reduce, ...</li>
+							<li>series, waterfall, parallel, ...</li>
+						</ul>
+					</section>
+
+					<section>
+						<h2>async</h2>
+						<pre>
+							<code class="hljs">
+async.filter(
+  ['file1.txt', 'file2.dat', 'file3.mp4'],
+  fs.exists,
+  function(results) {
+    // ...
+  }
+);
+							</code>
+						</pre>
+            <aside class="notes">
+              Still, just a helper for some use cases,
+              <a href="https://github.com/caolan/async#common-pitfalls-stackoverflow">it still has all the problems of callbacks.</a>
+            </aside>
+					</section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Promises</h2>
+					</section>
+
+          <section>
+            <h2>Promises</h2>
+            <p>Represents the outcome of an async operation</p>
+            <pre>
+              <code class="hljs">
+let promise = new Promise(function(resolve, reject) {
+  // ... some async operation ...
+  // notify the outer world that it has finished
+  resolve(value); // success
+  reject(reason); // error case
+});
+
+promise.then(function(value) { console.log(value); });
+promise.catch(function(reason) { console.log(reason); });
+              </code>
+            </pre>
+          </section>
+
+          <section>
+            <h2>Promises</h2>
+            <p>States</p>
+            <ul>
+              <li>Pending</li>
+              <li>Fulfilled = success</li>
+              <li>Rejected = error</li>
+            </ul>
+            <aside class="notes">
+              Adding handlers later to a finished promise --> handler is called
+            </aside>
+          </section>
+
+          <section>
+            <h2>Chaining</h2>
+            <pre>
+              <code class="hljs">
+readFile('file1.txt')
+// return value in handler
+.then(function(content) { return content.split(';')[2]; })
+// return a promise
+.then(function(otherPath) { return readFile(otherPart); })
+.then(function(content) { userIds.split(';')[0]; })
+.then(function(firstId) { return db.fetch(firstId); })
+.then(function(userData) { doSomeWork(); })
+// every error propagates here
+.catch(function(error) { handleError(error); });
+              </code>
+            </pre>
+            <aside class="notes">
+              <p>Handlers</p>
+              <ul>
+                <li>return value</li>
+                <li>return promise</li>
+                <li>throw an error</li>
+              </ul>
+              <p>Benefits</p>
+              <ul>
+                <li>composable scheme, composition always wins</li>
+                <li>return value handled intelligently</li>
+                <li>error handling can be separated from logic</li>
+                <li>we have throw and catch</li>
+                <li>errors propagate through the chain</li>
+              </ul>
+            </aside>
+          </section>
+
+          <section>
+            <h2>Multiple promises</h2>
+            <pre>
+              <code class="hljs">
+Promise.all([p0, p1, p2]).then(function(values) {
+  // values[0] -> p0
+  // values[1] -> p1
+});
+
+Promise.race([p0, p1, p2]).then(function(value) {
+  // value -> first promise to resolve
+});
+              </code>
+            </pre>
+          </section>
+
+          <section>
+            <h2>Libraries</h2>
+            <ul>
+              <li><a href="https://github.com/petkaantonov/bluebird">Bluebird</a></li>
+              <li><a href="https://github.com/kriskowal/q">Q</a></li>
+              <li><a href="https://promisesaplus.com/implementations">bunch of others</a></li>
+            </ul>
+            <p>Utility methods, progress, cancellation, etc.</p>
+          </section>
+
+          <section>
+            <h2>Drawbacks</h2>
+            <p>Not intuitive, learning curve</p>
+            <ul>
+              <li>pitfalls</li>
+              <li><a href="https://github.com/petkaantonov/bluebird/wiki/Promise-anti-patterns">anti-patterns</a></li>
+            </ul>
+            <p>MUST READ: <a href="http://pouchdb.com/2015/05/18/we-have-a-problem-with-promises.html">we have a problem with promises</a></p>
+            <aside class="notes">
+              The JS community learned and standardized promises the hard way.
+            </aside>
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Generators + promises</h2>
+					</section>
+
+          <section>
+            <h2>Generators</h2>
+            <p>Suspend execution of a function and continue later from the point of suspension.</p>
+          </section>
+
+          <section>
+            <h2>Generators</h2>
+            <pre>
+              <code class="hljs">
+let genFunc = function* (x) {
+  console.log(x);
+
+  let y = yield 2*x;
+
+  console.log(y);
+  return 2*y;
+};
+
+let gen = genFunc(5); // NO OUTPUT, return: generator
+gen.next(); // out: 5, return: { value: 10, done: false }
+gen.next(13); // out: 13, return: { value: 26, done: true }
+              </code>
+            </pre>
+            <aside class="notes">
+              Two-way communication with yield and next()
+            </aside>
+          </section>
+
+          <section>
+            <h2>Generators</h2>
+            <pre>
+              <code class="hljs">
+let genFunc = function* () {
+  try { yield; } catch(error) { console.log(error); }
+  yield 5;
+};
+
+let gen = genFunc();
+console.log(gen.next());
+// {value: undefined, done: false }
+console.log(gen.throw(new Error('from outside')));
+// [Error: from outside]
+// { value: 5, done: false }
+console.log(gen.next());
+// { value: undefined, done: true }
+              </code>
+            </pre>
+            <aside class="notes">
+              Errors can be triggered from outside
+            </aside>
+          </section>
+
+          <section>
+            <h2>Going async</h2>
+            <p>So far, so sync</p>
+            <p class="fragment">What if we yield promises?</p>
+          </section>
+
+          <section>
+            <pre>
+              <code class="hljs">
+let genFunc = function* () {
+  let content = yield readFile('file1.txt');
+  let id = content.split(';')[2];
+  let userData = yield db.fetch(id);
+  return userData.name;
+};
+let gen = genFunc();
+gen.next().value
+  .then(content => gen.next(content).value,
+        error => gen.throw(error).value)
+  .then(userData => gen.next(userData).value)
+  .then(name => console.log(name));
+              </code>
+            </pre>
+          </section>
+
+          <section>
+            <h2>Runner</h2>
+            <p>Libraries, helpers, samples for the general generator + promise runner</p>
+            <ul>
+              <li><a href="https://github.com/tj/co">co</a></li>
+              <li><a href="https://github.com/kriskowal/q/wiki/API-Reference#qspawngeneratorfunction">Q.spawn</a></li>
+            </ul>
+            <p class="fragment">Write your own!</p>
+            <aside class="notes">
+              <p>Using then and gen.next can be generalized</p>
+              <p>There are libraries for that job, but for fun and education try to write your own. It's not hard, but if you succeed you understand the topic.</p>
+            </aside>
+          </section>
+
+          <section>
+            <pre>
+              <code class="hljs">
+co(function* () {
+  let content = yield readFile('file1.txt');
+  let id = content.split(';')[2];
+  let userData = yield db.fetch(id);
+  return userData.name;
+}).then(name => console.log(name));
+              </code>
+            </pre>
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Async / await</h2>
+					</section>
+
+          <section>
+            <h2>Async / await</h2>
+            <p>Language feature for co + generator + yield</p>
+            <p><span style="text-decoration: line-through;">ES7 / ES2016</span> stage 3</p>
+            <aside class="notes">
+              <p>Did not make it into ES2016, but close to finalized standard, browsers soon will support it.</p>
+              <p>Can be transpiled with Babel.</p>
+            </aside>
+          </section>
+
+          <section>
+						<h2>Async / await</h2>
+            <pre>
+              <code class="hljs">
+async function myFunc() {
+  let content = await readFile('file1.txt');
+  let id = content.split(';')[2];
+  let userData = await db.fetch(id);
+  return userData.name;
+};
+
+myFunc().then(name => console.log(name));
+              </code>
+            </pre>
+					</section>
+
+          <section>
+            <h2>Async / await</h2>
+            <p>Async functions <strong>always return a promise</strong></p>
+            <p><a href="https://medium.com/@bluepnume/learn-about-promises-before-you-start-using-async-await-eb148164a9c8">Understanding promises is essential</a> for co+generator and async/await</p>
+          </section>
+
+				</section>
+
+				<section>
+					<h2>Async tests</h2>
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Context</h2>
+						<ul>
+							<li><a href="https://mochajs.org/">Mocha</a></li>
+							<li><a href="http://chaijs.com/">Chai</a></li>
+						</ul>
+					</section>
+
+          <section>
+            <h2>Mocha</h2>
+            <p>Test framework and test runner</p>
+            <ul>
+              <li>describe, it</li>
+              <li>before, after, beforeEach, afterEach hooks</li>
+              <li>describe.only, it.skip</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>Chai</h2>
+            <p>Assertion library</p>
+            <ul>
+              <li>assert, <strong>expect</strong>, should styles</li>
+              <li>assertion throws error or simply returns</li>
+              <li><a href="http://chaijs.com/plugins">plugins</a></li>
+            </ul>
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>done</h2>
+					</section>
+
+          <section>
+						<h2>done</h2>
+            <p>Callback given to test function to signal end of async test</p>
+            <pre>
+              <code class="hljs">
+it('should fetch the user name', function(done) {
+  getUsername(id, function(error, result) {
+    if (error) {
+      done(error);
+      return;
+    }
+    expect(result).to.eql('Joe');
+    done();
+  });
+});
+              </code>
+            </pre>
+					</section>
+
+          <section>
+            <h2>Problems with done</h2>
+            <ul>
+              <li>forget to call done after expect</li>
+              <li>callback hell</li>
+              <li>careful error propagation needed</li>
+              <li>timeout instead of error if tested API uses promises</li>
+            </ul>
+            <aside class="notes">
+              <p>Testing multiple steps can become callback hell</p>
+            </aside>
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Promise</h2>
+					</section>
+
+          <section>
+						<h2>Promise</h2>
+            <p>Assert in <em>then</em> or <em>catch</em> and return the promise</p>
+            <pre>
+              <code class="hljs">
+it('should fetch the user name', function() {
+  return getUsername(id).then(function(result) {
+    expect(result).to.eql('Joe');
+  });
+});
+              </code>
+            </pre>
+            <ul class="fragment">
+              <li>errors: rejected promise</li>
+              <li>shorter test</li>
+            </ul>
+					</section>
+
+          <section>
+						<h2>Chai as promised</h2>
+            <p><a href="https://github.com/domenic/chai-as-promised">Chai plugin</a> for assertions with promises</p>
+            <pre>
+              <code class="hljs">
+let chai = require('chai');
+let chaiAsPromised = require('chai-as-promised');
+chai.use(chaiAsPromised);
+
+// ...
+
+it('should fetch the user name', function() {
+  return expect(getUsername(id)).to.eventually.eql('Joe');
+  return expect(getUsername(id)).to.become('Joe');
+  // error testing
+  return expect(getUsername(id)).to.be.rejectedWith('some error');
+}):
+              </code>
+            </pre>
+
+					</section>
+
+          <section>
+            <h2>Promises never done</h2>
+            <p>Never use promises with done</p>
+            <pre style="border: 2px dashed red;">
+              <code style="background: rgba(255, 0, 0, 0.2);">
+it('should fetch the user name', function(done) {
+  getUsername(id).then(function(result) {
+    expect(result).to.eql('Joe');
+    done();
+  }, function(error) { done(error); });
+  // OR WITH CHAI AS PROMISED
+  expect(getUsername(id)).to.eventually.eql('Joe').and.notify(done);
+}):
+              </code>
+            </pre>
+            <aside class="notes">
+              <p>Why not: not needed, mocha accepts promises as return values</p>
+            </aside>
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Generators</h2>
+					</section>
+
+          <section>
+            <h2>Generator test functions</h2>
+            <p><a href="https://github.com/blakeembrey/co-mocha">co-mocha</a> package</p>
+            <pre>
+              <code class="hljs">
+require('co-mocha');
+it('should fetch the user name', function* () {
+  let userName = yield getUsername(id);
+  expect(userName).to.eql('Joe');
+}):
+              </code>
+            </pre>
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Async / await</h2>
+					</section>
+
+          <section>
+            <h2>Async test functions</h2>
+            <pre>
+              <code class="hljs">
+it('should fetch the user name', async function() {
+  let userName = await getUsername(id);
+  expect(userName).to.eql('Joe');
+}):
+              </code>
+            </pre>
+            <pre>
+              <code>
+npm install babel-register babel-polifyll
+
+mocha --compilers js:babel-register \
+      --require babel-polyfill testfile.js
+              </code>
+            </pre>
+          </section>
+
+
+				</section>
+
+				<section>
+					<h2>Additional info</h2>
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Promisify</h2>
+						<p>
+							From callback API to promise API...
+						</p>
+						<ul>
+							<li>Wrap manually</li>
+							<li>Use library</li>
+						</ul>
+					</section>
+
+					<section>
+						<h2>Manual wrapping</h2>
+            <pre>
+              <code class="hljs">
+let fs = require('fs');
+function readFile(path) {
+  return new Promise(function(resolve, reject) {
+    fs.readFile(path, function(error, content) {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(content.toString('utf8'));
+    });
+  });
+}
+              </code>
+            </pre>
+					</section>
+
+          <section>
+            <h2>Using a library</h2>
+            <pre>
+              <code class="hljs">
+let Promise = require('bluebird');
+let readFile = Promise.promisify(fs.readFile.bind(fs));
+
+Promise.promisifyAll(fs); // --> fs.readFileAsync(path);
+
+function promiseReadFile(path) {
+  return Promise.fromCallback(function(callback) {
+    fs.readFile(path, callback);
+  });
+}
+
+somePromise.asCallback(callback); // back to callback api
+somePromise.nodeify(callback); // back to callback api
+              </code>
+            </pre>
+
+          </section>
+
+				</section>
+
+				<section>
+
+					<section>
+						<h2>Testing Angular1 $http</h2>
+            <ul>
+              <li>with <em>angular-mocks</em> $http behaves <em>synchronously</em></li>
+              <li>returning its promise <strong>DOES NOT WORK</strong></li>
+              <li>Conscious decision of angular team</li>
+            </ul>
+					</section>
+
+					<section>
+						<h2>Wrong</h2>
+						<pre>
+              <code class="hljs">
+it('should fetch the data from the backend', function() {
+  // ...mock backend setup...
+  let service = new MyService($http);
+  let promise = service.load().then(() => {
+    expect(service.items).to.eql(['a', 'b', 'c']);
+  });
+  $httpBackend.flush();
+  return promise;
+});
+						  </code>
+            </pre>
+					</section>
+
+					<section>
+						<h2>Right</h2>
+						<pre>
+              <code class="hljs">
+it('should fetch the data from the backend', function() {
+  // ...mock backend setup...
+  let service = new MyService($http);
+  service.load();
+  $httpBackend.flush();
+  expect(service.items).to.eql(['a', 'b', 'c']);
+});
+						  </code>
+            </pre>
+
+					</section>
+
+				</section>
+
+				<section>
+					<h2>Other resources</h2>
+          <ul>
+            <li><a href="https://promisesaplus.com/implementations">Promise/A+ spec + implementations list</a></li>
+            <li><a href="http://www.html5rocks.com/en/tutorials/es6/promises/">HTML5 rocks on promises</a></li>
+            <li><a href="https://www.promisejs.org/">Promises website by Forbes Lindesay</a></li>
+            <li><a href="http://complexitymaze.com/2014/03/03/javascript-promises-a-comparison-of-libraries/">Comparison of promise libraries</a></li>
+            <li><a href="http://bevacqua.github.io/promisees/">Promise visualization tool</a></li>
+            <li><a href="https://davidwalsh.name/es6-generators">ES6 generators</a></li>
+            <li><a href="https://ponyfoo.com/articles/understanding-javascript-async-await">Understanding JavaScript async and await</a></li>
+            <li><a href="http://jamesknelson.com/testing-in-es6-with-mocha-and-babel-6/">Testing with ES6, mocha, and babel</a></li>
+            <li><a href="http://babeljs.io/">Babel JS</a></li>
+          </ul>
+				</section>
+
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+
+			// Full list of configuration options available at:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+				// Optional reveal.js plugins
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true },
+					{ src: 'plugin/notes/notes.js', async: true }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
